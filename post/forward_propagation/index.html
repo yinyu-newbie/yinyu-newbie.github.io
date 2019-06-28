@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Grokking Deep Learning - 前向传播 | Yu Yin&#39;s Blog</title>
+<meta name="description" content="行到水穷处，坐看云起时。">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="shortcut icon" href="https://yinyu-newbie.github.io/favicon.ico?v=1561722343711">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/papercss@1.6.1/dist/paper.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://yinyu-newbie.github.io/styles/main.css">
+
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+  
+
+  
+
+<script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+
+
+  </head>
+  <body>
+  
+    <nav class="navbar border fixed split-nav">
+  <div class="nav-brand">
+    <h3><a href="https://yinyu-newbie.github.io">Yu Yin&#39;s Blog</a></h3>
+  </div>
+  <div class="collapsible">
+    <input id="collapsible1" type="checkbox" name="collapsible1">
+    <button>
+      <label for="collapsible1">
+        <div class="bar1"></div>
+        <div class="bar2"></div>
+        <div class="bar3"></div>
+      </label>
+    </button>
+    <div class="collapsible-body">
+      <ul class="inline">
+        
+          <li>
+            
+              <a href="/" class="menu">
+                首页
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/archives" class="menu">
+                归档
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/tags" class="menu">
+                标签
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/post/about" class="menu">
+                关于
+              </a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div id="top" class="row site">
+      <div class="sm-12 md-8 col">
+        <div class="paper">
+          <article class="article">
+            <h1>Grokking Deep Learning - 前向传播</h1>
+            <p class="article-meta">
+              2019-06-28
+              
+                <a href="https://yinyu-newbie.github.io/tag/t6uPay-Oz" class="badge secondary">
+                  grokking deep learning
+                </a>
+              
+                <a href="https://yinyu-newbie.github.io/tag/deep learning" class="badge secondary">
+                  deep learning
+                </a>
+              
+            </p>
+            
+              <img src="https://yinyu-newbie.github.io/post-images/forward_propagation.png" alt="Grokking Deep Learning - 前向传播">
+            
+            <div class="post-content">
+              <p>神经网络的前向传播过程，即在权重的基础上给定输入，得到对应的输出。输入即可以观察到的<strong>信息</strong>，权重即<strong>知识</strong>，输出即最终的预测结果。以足球比赛为例，输入<strong>控球率</strong>，乘以权重，得到<strong>赢球概率</strong>。</p>
+<h3 id="单输入单输出的前向传播">单输入单输出的前向传播</h3>
+<p>最简单的前向传播神经网络，即输入单个观察值，预测得到单个输出结果。
+<img src="https://yinyu-newbie.github.io/post-images/1561720151730.png" alt=""></p>
+<pre><code class="language-python">weight = 0.1
+
+def neural_network(input, weight):
+    prediction = input * weight
+    return prediction
+
+number_of_toes = [8.5, 9.5, 10, 9]
+input = number_of_toes[0]
+pred = neural_network(input, weight)
+print(pred)
+</code></pre>
+<pre><code class="language-shell">&gt;&gt;&gt; 0.8500000000000001
+</code></pre>
+<h3 id="多输入单输出的前向传播">多输入单输出的前向传播</h3>
+<p>单个输入值情况下，考虑不够全面，纳入更多不同的输入值，最终的输出结果综合考虑了更多因素影响。
+<img src="https://yinyu-newbie.github.io/post-images/1561720303209.png" alt=""></p>
+<pre><code class="language-python">weights = [0.1, 0.2, 0]
+
+def neural_network(input, weights):
+    pred = w_sum(input, weights)
+    return pred
+
+def w_sum(a, b):
+    assert(len(a) == len(b))
+    
+    output = 0
+    for i in range(len(a)):
+        output += (a[i] * b[i])
+        
+    return output
+
+toes = [8.5, 9.5, 9.9, 9.0]
+wlrec = [0.65, 0.8, 0.8, 0.9]
+nfans = [1.2, 1.3, 0.5, 1.0]
+
+input = [toes[0], wlrec[0], nfans[0]]
+
+pred = neural_network(input, weights)
+print(pred)
+</code></pre>
+<pre><code class="language-shell">&gt;&gt;&gt; 0.9800000000000001
+</code></pre>
+<h4 id="numpy实现">Numpy实现</h4>
+<p>使用Numpy，可以方便地完成各类矩阵、向量操作。这里可以直接完成向量内积计算。</p>
+<pre><code class="language-python">import numpy as np
+
+weights = np.array([0.1, 0.2, 0])
+
+def neural_network(input, weights):
+    pred = input.dot(weights)
+    return pred
+
+toes = np.array([8.5, 9.5, 9.9, 9.0])
+wlrec = np.array([0.65, 0.8, 0.8])
+nfans = np.array([1.2, 1.3, 0.5, 1.0])
+
+input = np.array([toes[0], wlrec[0], nfans[0]])
+pred = neural_network(input, weights)
+print(pred)
+</code></pre>
+<pre><code class="language-shell">&gt;&gt;&gt; 0.9800000000000001
+</code></pre>
+<h3 id="单输入多输出的前向传播">单输入多输出的前向传播</h3>
+<p>单个输入值可以影响多个不同的输出，对应单输入多输出情况。
+<img src="https://yinyu-newbie.github.io/post-images/1561721091245.png" alt=""></p>
+<pre><code class="language-python">weights = [0.3, 0.2, 0.9]
+
+def neural_network(input, weights):
+    pred = ele_mul(input, weights)
+    return pred
+
+def ele_mul(number, vector):
+    output = [0, 0, 0]
+    assert(len(output) == len(vector))
+    
+    for i in range(len(vector)):
+        output[i] = number * vector[i]
+        
+    return output
+
+wlrec = [0.65, 0.8, 0.8, 0.9]
+input = wlrec[0]
+pred = neural_network(input, weights)
+print(pred)
+</code></pre>
+<pre><code class="language-shell">&gt;&gt;&gt; [0.195, 0.13, 0.5850000000000001]
+</code></pre>
+<h3 id="多输入多输出的前向传播">多输入多输出的前向传播</h3>
+<p><img src="https://yinyu-newbie.github.io/post-images/1561721209372.png" alt=""></p>
+<pre><code class="language-python">weights = [[0.1, 0.1, -0.3],
+           [0.1, 0.2, 0.0],
+           [0.0, 1.3, 0.1]]
+
+def neural_network(input, weights):
+    pred = vect_mat_mul(input, weights)
+    
+    return pred
+
+def w_sum(a, b):
+    assert(len(a) == len(b))
+    
+    output = 0
+    for i in range(len(a)):
+        output += (a[i] * b[i])
+    return output
+
+def vect_mat_mul(vect, matrix):
+    assert(len(vect) == len(matrix))
+ 
+    output = [0, 0, 0]
+    
+    for i in range(len(vect)):
+        output[i] = w_sum(vect, matrix[i])
+        
+    return output
+
+
+toes = [8.5, 9.5, 9.9, 9.0]
+wlrec = [0.65, 0.8, 0.8, 0.9]
+nfans = [1.2, 1.3, 0.5, 1.0]
+
+input = [toes[0], wlrec[0], nfans[0]]
+
+pred = neural_network(input, weights)
+print(pred)
+</code></pre>
+<pre><code class="language-shell">&gt;&gt;&gt; [0.555, 0.9800000000000001, 0.9650000000000001]
+</code></pre>
+<p>神经网络就像积木一样，通过堆叠不同的层可以构建更加复杂的神经网络。</p>
+<h3 id="基于预测再进行预测">基于预测再进行预测</h3>
+<p>在前面多输入多输出的情况下，再接一个一个多输入多输出的网络层，构建一个多层神经网络。
+<img src="https://yinyu-newbie.github.io/post-images/1561721619049.png" alt=""></p>
+<pre><code class="language-python">ih_wgt = [[0.1, 0.2, -0.1],
+          [-0.1, 0.1, 0.9],
+          [0.1, 0.4, 0.1]]
+
+hp_wgt = [[0.3, 1.1, -0.3],
+          [0.1, 0.2, 0.0],
+          [0.0, 1.3, 0.1]]
+
+weights = [ih_wgt, hp_wgt]
+
+def neural_network(input, weights):
+    hid = vect_mat_mul(input, weights[0])
+    pred = vect_mat_mul(hid, weights[1])
+    return pred
+
+toes = [8.5, 9.5, 9.9, 9.0]
+wlrec = [0.65, 0.8, 0.8, 0.9]
+nfans = [1.2, 1.3, 0.5, 1.0]
+
+input = [toes[0], wlrec[0], nfans[0]]
+pred = neural_network(input, weights)
+print(pred)
+</code></pre>
+<pre><code class="language-shell">&gt;&gt;&gt; [0.21350000000000002, 0.14500000000000002, 0.5065]
+</code></pre>
+<h4 id="numpy-版本">Numpy 版本</h4>
+<pre><code class="language-python">import numpy as np
+
+ih_wgt = np.array([[0.1, 0.2, -0.1],
+                   [-0.1, 0.1, 0.9],
+                   [0.1, 0.4, 0.1]]).T
+
+hp_wgt = np.array([[0.3, 1.1, -0.3],
+                   [0.1, 0.2, 0.0],
+                   [0.0, 1.3, 0.1]]).T
+
+weights = [ih_wgt, hp_wgt]
+
+def neural_network(input, weights):
+    hid = input.dot(weights[0])
+    pred = hid.dot(weights[1])
+    return pred
+
+toes = np.array([8.5, 9.5, 9.9, 9.0])
+wlrec = np.array([0.65, 0.8, 0.8, 0.9])
+nfans = np.array([1.2, 1.3, 0.5, 1.0])
+
+input = np.array([toes[0], wlrec[0], nfans[0]])
+
+pred = neural_network(input, weights)
+pred
+</code></pre>
+<pre><code class="language-shell">&gt;&gt;&gt; array([0.2135, 0.145 , 0.5065])
+</code></pre>
+<h3 id="总结">总结</h3>
+<p>前向传播只能通过输入值得到计算后的输出值，但目前存在二个问题:</p>
+<ul>
+<li>不知道输出结果好坏与否</li>
+<li>如果输出结果不理想，如何调整权重
+上述问题的解决方法将会在后续提到。</li>
+</ul>
+
+            </div>
+          </article>
+        </div>
+        <div class="paper" data-aos="fade-in">
+          
+        </div>
+        
+          
+            <div class="paper" data-aos="fade-in">
+              <div id="gitalk-container"></div>
+            </div>
+          
+
+          
+        
+      </div>
+
+      <div class="sm-12 md-4 col sidebar">
+  <div class="paper info-container">
+    <img src="https://yinyu-newbie.github.io/images/avatar.png?v=1561722343711" class="no-responsive avatar">
+    <div class="text-muted">行到水穷处，坐看云起时。</div>
+    <div class="social-container">
+      
+        
+          <a href="https://github.com/yinyu-newbie" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+          <a href="https://www.zhihu.com/people/yuyinsuperman/activities" target="_blank">
+            <i class="fab fa-zhihu"></i>
+          </a>
+        
+      
+        
+      
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      最新文章
+    </div>
+    <div class="row">
+      <ul>
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/forward_propagation">Grokking Deep Learning - 前向传播</a>
+            </li>
+          
+        
+      </ul>
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      标签列表
+    </div>
+    <div class="row">
+      
+        <a href="https://yinyu-newbie.github.io/tag/t6uPay-Oz" class="badge success">
+          grokking deep learning
+        </a>
+      
+        <a href="https://yinyu-newbie.github.io/tag/deep learning" class="badge success">
+          deep learning
+        </a>
+      
+    </div>
+  </div>
+  <div class="paper">
+    Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://yinyu-newbie.github.io/atom.xml" target="_blank">RSS</a>
+  </div>
+</div>
+
+
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+
+<script type="application/javascript">
+
+AOS.init();
+
+hljs.initHighlightingOnLoad()
+
+</script>
+
+
+
+  
+    <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+    <script>
+
+      var gitalk = new Gitalk({
+        clientID: '37a57ffc1591f58c6dd3',
+        clientSecret: 'c4961b24d1e43c76447fe607495c06e10196a712',
+        repo: 'yinyu-newbie.github.io',
+        owner: 'yinyu-newbie',
+        admin: ['yinyu-newbie'],
+        id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+        distractionFreeMode: false  // Facebook-like distraction free mode
+      })
+
+      gitalk.render('gitalk-container')
+
+    </script>
+  
+
+  
+
+
+
+
+  </body>
+</html>
