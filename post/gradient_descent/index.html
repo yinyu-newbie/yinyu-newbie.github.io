@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Grokking Deep Learning - 梯度下降 | Yu Yin&#39;s Blog</title>
+<meta name="description" content="行到水穷处，坐看云起时。">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="shortcut icon" href="https://yinyu-newbie.github.io/favicon.ico?v=1561804798271">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/papercss@1.6.1/dist/paper.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://yinyu-newbie.github.io/styles/main.css">
+
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+  
+
+  
+
+<script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+
+
+  </head>
+  <body>
+  
+    <nav class="navbar border fixed split-nav">
+  <div class="nav-brand">
+    <h3><a href="https://yinyu-newbie.github.io">Yu Yin&#39;s Blog</a></h3>
+  </div>
+  <div class="collapsible">
+    <input id="collapsible1" type="checkbox" name="collapsible1">
+    <button>
+      <label for="collapsible1">
+        <div class="bar1"></div>
+        <div class="bar2"></div>
+        <div class="bar3"></div>
+      </label>
+    </button>
+    <div class="collapsible-body">
+      <ul class="inline">
+        
+          <li>
+            
+              <a href="/" class="menu">
+                首页
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/archives" class="menu">
+                归档
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/tags" class="menu">
+                标签
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/post/about" class="menu">
+                关于
+              </a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div id="top" class="row site">
+      <div class="sm-12 md-8 col">
+        <div class="paper">
+          <article class="article">
+            <h1>Grokking Deep Learning - 梯度下降</h1>
+            <p class="article-meta">
+              2019-06-29
+              
+                <a href="https://yinyu-newbie.github.io/tag/t6uPay-Oz" class="badge warning">
+                  grokking deep learning
+                </a>
+              
+                <a href="https://yinyu-newbie.github.io/tag/deep learning" class="badge success">
+                  deep learning
+                </a>
+              
+            </p>
+            
+              <img src="https://yinyu-newbie.github.io/post-images/gradient_descent.png" alt="Grokking Deep Learning - 梯度下降">
+            
+            <div class="post-content">
+              <p>上一篇文章 <a href="https://yinyu-newbie.github.io/post/forward_propagation/">Grokking Deep Learning - 前向传播</a> 主要介绍如何使用固定参数的神经网络，对输入进行预测，得到输出。在最后留下了两个问题：1. 如何去判断神经网络输出是否合理；2. 如果输出不合理，应该采取什么措施。</p>
+<h3 id="误差函数">误差函数</h3>
+<p>我们使用神经网络的目的，是输入一些容易观察、采集到的数据，预测合理的结果。例如，输入一张图片，神经网络能判断图片中是否存在一只猫。因此，需要对神经网络的预测结果与目标值进行比较，看看二者之间的差距有多大，神经网络是否能够正确地进行预测。</p>
+<p>下面以一简单神经网络为例：</p>
+<pre><code class="language-python">knob_weight = 0.5 
+input = 0.5
+goal_pred = 0.8
+
+pred = input * knob_weight
+
+error = (pred - goal_pred) ** 2
+print(error)
+</code></pre>
+<pre><code class="language-shell">0.30250000000000005
+</code></pre>
+<p>这里，误差用 <code>(pred - goal_pred) ** 2</code> 表示，主要有如下原因：</p>
+<ul>
+<li>平方处理得到的误差值均为非负数，当 pred 大于 goal_pred 或者 pred 小于 goal_pred 能够同等看待。另外，如果直接将两者之差作为误差，不同样本的误差值有正数、有负数，多个样本的误差值的平均值无法反应真实情况</li>
+<li>pred 和 goal_pred 差距较大时，平方处理会放大两者之间的误差，而 pred 和 goal_pred 差距较小时，相对而言不会有很大的影响</li>
+</ul>
+<p>通过误差函数能够<strong>直观</strong>反映神经网络在不同输入样本上的表现，因为不同输入对应的预测输出不同，当误差函数返回值为 0 时，即预测输出与目标值一致。</p>
+<h3 id="学习">学习</h3>
+<p>上面我们知道了如何去比较预测输出和目标值的差距，那么当两者差距较大，神经网络该如何进行调整呢？</p>
+<h4 id="冷热学习">冷热学习</h4>
+<p>冷热学习（Hot and cold learning）是一种很容易理解的方法。假设单输入单输出神经网络的场景，当预测输出和目标值差距较大时，进行如下操作：</p>
+<ol>
+<li>将权重值稍微调大一点，记录在新的权重下，对应的误差</li>
+<li>将权重值稍微调小一点，记录在新的权重下，对应的误差</li>
+<li>如果步骤 1 的误差比步骤 2 的误差小，那么选择步骤 1 调整权重，反之，则选择步骤 2 调整权重</li>
+<li>继续 1-3 更新权重，直至误差满足要求或者迭代次数结束</li>
+</ol>
+<p>用代码实现冷热学习：</p>
+<pre><code class="language-python">weight = 0.5
+input = 0.5
+goal_prediction = 0.8
+
+step_amount = 0.001
+
+for iteration in range(1101):
+    prediction = input * weight
+    error = (prediction - goal_prediction) ** 2
+    
+    print(f&quot;Error: {error} Prediction: {prediction}&quot;)
+    
+    up_prediction = input * (weight + step_amount)
+    down_prediction = input * (weight - step_amount)
+    
+    up_error = (up_prediction - goal_prediction) ** 2
+    down_error = (down_prediction - goal_prediction) ** 2
+    
+    if up_error &gt; down_error:
+        weight -= step_amount
+    elif up_error &lt; down_error:
+        weight += step_amount
+</code></pre>
+<pre><code class="language-shell">Error: 0.30250000000000005 Prediction: 0.25
+Error: 0.3019502500000001 Prediction: 0.2505
+Error: 0.30140100000000003 Prediction: 0.251
+...
+Error: 2.5000000003280753e-07 Prediction: 0.7994999999999672
+Error: 1.0799505792475652e-27 Prediction: 0.7999999999999672
+</code></pre>
+<p>可以看到，在迭代结束后，误差已经极小，预测输出与目标值基本一致。</p>
+<p>通过冷热学习可以快速了解神经网络调整过程与最终输出的关系，在深度学习实际应用中并不会使用该方法，主要有如下原因：</p>
+<ol>
+<li>每次调整权重的过程需要进行多次计算比较，效率较低</li>
+<li>有些情况下，迭代中权重调整可能发生震荡，比如权重刚在这次迭代中减了 step_amount, 又在下次迭代中加了 step_amount。这种情况下，权重会在两个值之间一直变化，对应误差也会发生震荡，不会一直下降。</li>
+</ol>
+<p>接下来，继续了解梯度下降方法，也是深度学习中最常用的方法。</p>
+<h4 id="梯度下降">梯度下降</h4>
+<p>神经网络前向传播的过程中，只能够通过改变权重来改变预测输出，因此可以根据预测输出与目标值的差距反过来调整权重，使得调整后的权重能够使误差更小。因为预测输出和输入之间存在函数映射关系，因此可以通过求导数的方法确定二者之间的变化关系，这便是梯度下降的核心思想。
+<img src="https://yinyu-newbie.github.io/post-images/1561803788367.png" alt=""></p>
+<pre><code class="language-python">weight = 0.5
+goal_pred = 0.8
+input = 0.5
+
+for iteration in range(20):
+    pred = input * weight
+    error = (pred - goal_pred) ** 2
+    direction_and_amount = (pred - goal_pred) * input
+    weight -= direction_and_amount
+    print(f&quot;Error: {error} Prediction: {pred}&quot;)
+</code></pre>
+<pre><code class="language-shell">Error: 0.30250000000000005 Prediction: 0.25
+Error: 0.17015625000000004 Prediction: 0.3875
+...
+Error: 9.614592036015323e-06 Prediction: 0.7968992594374867
+Error: 5.408208020258491e-06 Prediction: 0.7976744445781151
+</code></pre>
+<p>当 input 较大时，上述代码中每次更新权重变化可能较大，同样也会发生震荡的情况，导致误差值难以逐渐变小。
+<img src="https://yinyu-newbie.github.io/post-images/1561803913979.png" alt="">
+<img src="https://yinyu-newbie.github.io/post-images/1561803917861.png" alt="">
+为了改善上述情况，在更新权重时可以加入一个 alpha 值来控制权重调整的大小。在深度学习训练神经网络的过程中，这样的参数设置很多，通常都是通过尝试和经验确定这些参数的大小。</p>
+<pre><code class="language-python">weight -= alpha * direction_and_amount
+</code></pre>
+<h3 id="总结">总结</h3>
+<ul>
+<li>通过误差函数能够计算当前神经网络的表现，并且可以用于后续训练</li>
+<li>神经网络的学习即调整权重的过程</li>
+<li>神经网络权重的调整通常是通过梯度下降方法进行</li>
+</ul>
+
+            </div>
+          </article>
+        </div>
+        <div class="paper" data-aos="fade-in">
+          
+            <div class="next-post">
+              <div class="next">
+                下一篇
+              </div>
+              <a href="https://yinyu-newbie.github.io/post/forward_propagation">
+                <h3 class="post-title">
+                  Grokking Deep Learning - 前向传播
+                </h3>
+              </a>
+            </div>
+          
+        </div>
+        
+          
+            <div class="paper" data-aos="fade-in">
+              <div id="gitalk-container"></div>
+            </div>
+          
+
+          
+        
+      </div>
+
+      <div class="sm-12 md-4 col sidebar">
+  <div class="paper info-container">
+    <img src="https://yinyu-newbie.github.io/images/avatar.png?v=1561804798271" class="no-responsive avatar">
+    <div class="text-muted">行到水穷处，坐看云起时。</div>
+    <div class="social-container">
+      
+        
+          <a href="https://github.com/yinyu-newbie" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+          <a href="https://www.zhihu.com/people/yuyinsuperman/activities" target="_blank">
+            <i class="fab fa-zhihu"></i>
+          </a>
+        
+      
+        
+      
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      最新文章
+    </div>
+    <div class="row">
+      <ul>
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/gradient_descent">Grokking Deep Learning - 梯度下降</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/forward_propagation">Grokking Deep Learning - 前向传播</a>
+            </li>
+          
+        
+      </ul>
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      标签列表
+    </div>
+    <div class="row">
+      
+        <a href="https://yinyu-newbie.github.io/tag/t6uPay-Oz" class="badge warning">
+          grokking deep learning
+        </a>
+      
+        <a href="https://yinyu-newbie.github.io/tag/deep learning" class="badge secondary">
+          deep learning
+        </a>
+      
+    </div>
+  </div>
+  <div class="paper">
+    Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://yinyu-newbie.github.io/atom.xml" target="_blank">RSS</a>
+  </div>
+</div>
+
+
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+
+<script type="application/javascript">
+
+AOS.init();
+
+hljs.initHighlightingOnLoad()
+
+</script>
+
+
+
+  
+    <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+    <script>
+
+      var gitalk = new Gitalk({
+        clientID: '37a57ffc1591f58c6dd3',
+        clientSecret: 'c4961b24d1e43c76447fe607495c06e10196a712',
+        repo: 'yinyu-newbie.github.io',
+        owner: 'yinyu-newbie',
+        admin: ['yinyu-newbie'],
+        id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+        distractionFreeMode: false  // Facebook-like distraction free mode
+      })
+
+      gitalk.render('gitalk-container')
+
+    </script>
+  
+
+  
+
+
+
+
+  </body>
+</html>
