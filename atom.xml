@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://yinyu-newbie.github.io</id>
     <title>Yu Yin&apos;s Blog</title>
-    <updated>2019-06-29T10:41:45.130Z</updated>
+    <updated>2019-07-02T07:30:03.755Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://yinyu-newbie.github.io"/>
     <link rel="self" href="https://yinyu-newbie.github.io/atom.xml"/>
@@ -10,6 +10,164 @@
     <logo>https://yinyu-newbie.github.io/images/avatar.png</logo>
     <icon>https://yinyu-newbie.github.io/favicon.ico</icon>
     <rights>All rights reserved 2019, Yu Yin&apos;s Blog</rights>
+    <entry>
+        <title type="html"><![CDATA[Grokking Deep Learning - 梯度下降2]]></title>
+        <id>https://yinyu-newbie.github.io/post/gradient_descent_2</id>
+        <link href="https://yinyu-newbie.github.io/post/gradient_descent_2">
+        </link>
+        <updated>2019-07-02T05:53:46.000Z</updated>
+        <content type="html"><![CDATA[<p>上次简单地介绍下 <a href="https://yinyu-newbie.github.io/post/gradient_descent/">梯度下降</a> ，主要是单输入单输出场景下地梯度下降。本章中将逐步介绍多输入单输出、单输入多输出以及多输入多输入场景下的梯度下降。<!-- more --></p>
+<h3 id="多输入单输出">多输入单输出</h3>
+<p><img src="https://yinyu-newbie.github.io/post-images/1562047660470.png" alt="">
+多输入单输出可以由单输入单输出的场景推广而来。多输入单输出情况下，预测输出由几个输入和权重决定，而几个输入和权重之间又是互相独立的。对于一对输入和权重来说，可以根据误差反馈情况，根据输入来对权重进行调整。</p>
+<pre><code class="language-python"># 计算输出
+def w_sum(a, b):
+    assert len(a) == len(b)
+    output = 0
+		
+    for i in range(len(a)):
+        output += a[i] * b[i]
+        
+    return output
+
+# 权重
+weights = [0.1, 0.2, -0.1]
+
+# 神经网络
+def neural_network(input, weights):
+    pred = w_sum(input, weights)
+    return pred
+
+# 计算三个输入对应的三个权重更新
+def ele_mul(number, vector):
+    output = [0, 0, 0]
+    assert(len(output) == len(vector))
+    
+    for i in range(len(vector)):
+        output[i] = number * vector[i]
+        
+    return output
+
+toes = [8.5, 9.5, 9.9, 9.0]
+wlrec = [0.65, 0.8, 0.8, 0.9]
+nfans = [1.2, 1.3, 0.5, 1.0]
+
+win_or_lose_binary = [1, 1, 0, 1]
+true = win_or_lose_binary[0]
+input = [toes[0], wlrec[0], nfans[0]]
+pred = neural_network(input, weights)
+error = (pred - true) ** 2
+delta = pred - true
+weight_deltas = ele_mul(delta, input)
+
+print(weight_deltas)
+</code></pre>
+<pre><code class="language-shell">[-1.189999999999999, -0.09099999999999994, -0.16799999999999987]
+</code></pre>
+<h3 id="单输入多输出">单输入多输出</h3>
+<p>单输入多输出的场景，仍然可以看作是单输入单输入的推广。单输入与多个权重之间的组合对应不同的输出，多个输出之间互相无关，仅与对应的权重相关。
+<img src="https://yinyu-newbie.github.io/post-images/1562049304308.png" alt=""></p>
+<pre><code class="language-python"># 神经网络
+def neural_network(input, weights):
+    pred = ele_mul(input, weights)
+    return pred
+
+# 用于计算梯度
+def scalar_ele_mul(number, vector):
+    output = [0, 0, 0]
+    
+    assert(len(output) == len(vector))
+    
+    for i in range(len(vector)):
+        output[i] = number * vector[i]
+        
+    return output
+
+
+weights = [0.3, 0.2, 0.9]
+
+wlrec = [0.65, 1.0, 1.0, 0.9]
+hurt = [0.1, 0.0, 0.0, 0.1]
+win = [1, 1, 0, 1]
+sad = [0.1, 0.0, 0.1, 0.2]
+
+input = wlrec[0]
+true = [hurt[0], win[0], sad[0]]
+
+pred = neural_network(input, weights)
+
+error = [0, 0, 0]
+delta = [0, 0, 0]
+
+for i in range(len(true)):
+    error[i] = (pred[i] - true[i]) ** 2
+    delta[i] = pred[i] - true[i]
+		
+weight_deltas = scalar_ele_mul(input,weights)
+print(weight_deltas)
+</code></pre>
+<pre><code class="language-shell">[0.195, 0.13, 0.5850000000000001]
+</code></pre>
+<h3 id="多输入多输出">多输入多输出</h3>
+<p><img src="https://yinyu-newbie.github.io/post-images/1562052451129.png" alt="">
+多输入多输出的场景可以看作是多个多输入单输出组合起来。</p>
+<pre><code class="language-python">def vect_mat_mul(vect, matrix):
+    assert(len(vect) == len(matrix))
+    output = [0, 0, 0]
+    for i in range(len(vect)):
+        output[i] = w_sum(vect, matrix[i])
+    return output
+
+def neural_network(input, weights):
+    pred = vect_mat_mul(input, weights)
+    return pred
+
+def outer_prod(vec_a, vec_b):
+    out = zeros_matrix(len(vec_a), len(vec_b))
+    for i in range(len(vec_a)):
+        for j in range(len(vec_b)):
+            out[i][j] = vec_a[i] * vec_b[j]
+    return out
+
+def zeros_matrix(a, b):
+    return [[0 for j in range(b)] for i in range(a)]
+
+weights = [[0.1, 0.1, -0.3],
+           [0.1, 0.2, 0.0],
+           [0.0, 1.3, 0.1]]
+
+toes = [8.5, 9.5, 9.9, 9.0]
+wlrec = [0.65, 0.8, 0.8, 0.9]
+nfans = [1.2, 1.3, 0.5, 1.0]
+
+hurt = [0.1, 0.0, 0.0, 0.1]
+win = [1, 1, 0, 1]
+sad = [0.1, 0.0, 0.1, 0.2]
+
+alpha = 0.01
+
+input = [toes[0], wlrec[0], nfans[0]]
+true = [hurt[0], win[0], sad[0]]
+
+pred = neural_network(input, weights)
+
+error = [0, 0, 0]
+delta = [0, 0, 0]
+
+for i in range(len(true)):
+    error[i] = (pred[i] - true[i]) ** 2
+    delta[i] = pred[i] - true[i]
+    
+weight_deltas = outer_prod(input, delta)
+print(weight_deltas)
+</code></pre>
+<pre><code class="language-shell">[[3.8675000000000006, -0.1699999999999992, 7.352500000000001], [0.29575000000000007, -0.01299999999999994, 0.5622500000000001], 
+[0.546, -0.023999999999999886, 1.038]]
+</code></pre>
+<h3 id="总结">总结</h3>
+<p>梯度下降算法是一种通用的学习算法，可以用于结合误差函数，调整神经网络中的权重，逐渐减小误差，达到学习的目标。不同的神经网络，可能权重组合和误差函数不同，但是大多都是通过梯度下降算法及其变种进行学习的。</p>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Grokking Deep Learning - 梯度下降]]></title>
         <id>https://yinyu-newbie.github.io/post/gradient_descent</id>
