@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>fastai lesson 1: Image classification | Yu Yin&#39;s Blog</title>
+<meta name="description" content="行到水穷处，坐看云起时。">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="shortcut icon" href="https://yinyu-newbie.github.io/favicon.ico?v=1562833774414">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/papercss@1.6.1/dist/paper.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://yinyu-newbie.github.io/styles/main.css">
+
+
+  
+    <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css" />
+  
+
+  
+
+<script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+
+
+  </head>
+  <body>
+  
+    <nav class="navbar border fixed split-nav">
+  <div class="nav-brand">
+    <h3><a href="https://yinyu-newbie.github.io">Yu Yin&#39;s Blog</a></h3>
+  </div>
+  <div class="collapsible">
+    <input id="collapsible1" type="checkbox" name="collapsible1">
+    <button>
+      <label for="collapsible1">
+        <div class="bar1"></div>
+        <div class="bar2"></div>
+        <div class="bar3"></div>
+      </label>
+    </button>
+    <div class="collapsible-body">
+      <ul class="inline">
+        
+          <li>
+            
+              <a href="/" class="menu">
+                首页
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/archives" class="menu">
+                归档
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/tags" class="menu">
+                标签
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/post/about" class="menu">
+                关于
+              </a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div id="top" class="row site">
+      <div class="sm-12 md-8 col">
+        <div class="paper">
+          <article class="article">
+            <h1>fastai lesson 1: Image classification</h1>
+            <p class="article-meta">
+              2019-07-11
+              
+                <a href="https://yinyu-newbie.github.io/tag/deep learning" class="badge ">
+                  deep learning
+                </a>
+              
+                <a href="https://yinyu-newbie.github.io/tag/igc-5yMFR" class="badge secondary">
+                  fastai
+                </a>
+              
+            </p>
+            
+            <div class="post-content">
+              <p><a href="https://course.fast.ai/">fastai 深度学习系列课程</a> 直接从应用入手，逐步深入了解深度学习的各方面应用和底层细节。就如 Jeremy 所说，直接从代码实现开始，而不是先去做好各方面的准备工作之后才开始学习 deep learning。</p>
+<!-- more -->
+<p>第一课的主要内容是利用 resnet 进行宠物图像细分类，通过本门课可以了解大致的深度学习项目的流程。</p>
+<p>第一课的代码地址在: <a href="https://github.com/fastai/course-v3/blob/master/nbs/dl1/lesson1-pets.ipynb">https://github.com/fastai/course-v3/blob/master/nbs/dl1/lesson1-pets.ipynb</a>。
+推荐看完视频后动手实践加深理解，make hands dirty~</p>
+<p>设置每次放入 GPU 中训练 batch_size 大小。如果 GPU 显存不足，可以适当设置小一点的 batch_size 值。</p>
+<pre><code class="language-python">bs = 64
+# bs = 16    # GPU 显存不足时使用小 batch_size
+</code></pre>
+<h3 id="查看数据">查看数据</h3>
+<p>本次实验中使用的是 <a href="http://www.robots.ox.ac.uk/~vgg/data/pets/">Oxford-IIIT Pet Dataset</a>，其中包含 12 种🐱和 25 种🐶，需要训练模型细分这 37 种不同的类别。在使用模型进行训练前，需要查看数据的详细情况：包括数据目录组织方式、示例数据样式等。</p>
+<h4 id="查看数据目录">查看数据目录</h4>
+<pre><code class="language-python">path = untar_data(URLs.PETS)
+print(path)
+path.ls()
+</code></pre>
+<pre><code class="language-shell">PosixPath('/home/user/.fastai/data/oxford-iiit-pet')
+[PosixPath('/home/user/.fastai/data/oxford-iiit-pet/images'),
+ PosixPath('/home/user/.fastai/data/oxford-iiit-pet/annotations')]
+</code></pre>
+<p>查看图片数据的命名方式：</p>
+<pre><code class="language-python">path_anno = path/'annotations'
+path_img = path/'images'
+
+fnames = get_image_files(path_img)
+print(fnames[:5])
+</code></pre>
+<pre><code class="language-shell">[PosixPath('/home/user/.fastai/data/oxford-iiit-pet/images/staffordshire_bull_terrier_181.jpg'),
+ PosixPath('/home/user/.fastai/data/oxford-iiit-pet/images/english_setter_34.jpg'),
+ PosixPath('/home/user/.fastai/data/oxford-iiit-pet/images/staffordshire_bull_terrier_32.jpg'),
+ PosixPath('/home/user/.fastai/data/oxford-iiit-pet/images/Siamese_257.jpg'),
+ PosixPath('/home/user/.fastai/data/oxford-iiit-pet/images/Russian_Blue_69.jpg')]
+</code></pre>
+<p>可以看到，在图片文件夹中的每张图片以类别-编号的格式进行命名。fastai 库提供了利用正则表达式组织数据的方式。</p>
+<pre><code class="language-python">pat = r'/([^/]+)_\d+.jpg$'
+data = ImageDataBunch.from_name_re(path_img, fnames, pat, ds_tfms=get_transforms(), size=224,bs=bs).normalize(imagenet_stats)
+print(data.classes)
+print(len(data.classes))
+</code></pre>
+<pre><code class="language-shell">['Abyssinian', 'Bengal', 'Birman', 'Bombay', 'British_Shorthair', 'Egyptian_Mau', 'Maine_Coon', 'Persian', 'Ragdoll', 'Russian_Blue', 'Siamese', 'Sphynx', 'american_bulldog', 'american_pit_bull_terrier', 'basset_hound', 'beagle', 'boxer', 'chihuahua', 'english_cocker_spaniel', 'english_setter', 'german_shorthaired', 'great_pyrenees', 'havanese', 'japanese_chin', 'keeshond', 'leonberger', 'miniature_pinscher', 'newfoundland', 'pomeranian', 'pug', 'saint_bernard', 'samoyed', 'scottish_terrier', 'shiba_inu', 'staffordshire_bull_terrier', 'wheaten_terrier', 'yorkshire_terrier']
+37
+</code></pre>
+<p>接下来，从数据中随机抽取一些样本数据，查看图片内容。</p>
+<pre><code class="language-python">data.show_batch(rows=3, figsize=(7,6))
+</code></pre>
+<p><img src="https://yinyu-newbie.github.io/post-images/1562829862472.png" alt=""></p>
+<h3 id="使用-resnet34-训练">使用 resnet34 训练</h3>
+<p>现在，数据已经准备就绪，可以使用卷积神经网络进行模型训练。目前可以简单地将模型看作以一张图片作为输入，输出图片属于每个类别的概率（在本次课中有 37 个输出），暂时不用去深究卷积神经网络的细节。</p>
+<p>选取 resnet34 模型，训练 4 个 epochs（即在训练数据上会循环训练 4 次）。</p>
+<pre><code class="language-python">learn = cnn_learner(data, models.resnet34, metrics=error_rate)
+learn.fit_one_cycle(4)
+</code></pre>
+<pre><code class="language-shell">epoch	train_loss	valid_loss	error_rate	time
+0	1.389659	0.333576	0.110961	00:18
+1	0.554688	0.270095	0.091340	00:18
+2	0.343152	0.210691	0.073748	00:19
+3	0.252373	0.201956	0.071042	00:19
+</code></pre>
+<p>训练结束后，可以保存训练好的模型。</p>
+<pre><code class="language-shell">learn.save('stage-1')
+</code></pre>
+<h3 id="分析训练结果">分析训练结果</h3>
+<p>训练结束后，分析模型的预测结果。看一下哪些图片的预测结果出错，即使是出错的情况，是否是比较合理的（某些图片可能确实难以区分是什么类别）。
+查看分类错误最严重的几个图片：</p>
+<pre><code class="language-python">interp = ClassificationInterpretation.from_learner(learn)
+losses,idxs = interp.top_losses()
+len(data.valid_ds)==len(losses)==len(idxs)
+interp.plot_top_losses(9, figsize=(15,11))
+</code></pre>
+<p><img src="https://yinyu-newbie.github.io/post-images/1562831268940.png" alt="">
+接下来查看分类错误的混淆矩阵，看看不同类别错误分类的情况:</p>
+<pre><code class="language-python">interp.plot_confusion_matrix(figsize=(12,12), dpi=60)
+</code></pre>
+<p><img src="https://yinyu-newbie.github.io/post-images/1562831326677.png" alt="">
+筛选错误分类的具体类别:</p>
+<pre><code class="language-python">interp.most_confused(min_val=2)
+</code></pre>
+<pre><code class="language-shell">[('British_Shorthair', 'Russian_Blue', 5),
+ ('Ragdoll', 'Birman', 5),
+ ('staffordshire_bull_terrier', 'american_pit_bull_terrier', 5),
+ ('Birman', 'Ragdoll', 3),
+ ('Birman', 'Siamese', 3),
+ ('Persian', 'Maine_Coon', 3),
+ ('Persian', 'Ragdoll', 3),
+ ('Russian_Blue', 'British_Shorthair', 3),
+ ('american_bulldog', 'american_pit_bull_terrier', 3),
+ ('american_pit_bull_terrier', 'staffordshire_bull_terrier', 3),
+ ('chihuahua', 'miniature_pinscher', 3)]
+</code></pre>
+<h4 id="unfreezing-fine-tuning-和-learning-rates">unfreezing, fine-tuning 和 learning rates</h4>
+<p>训练结束后，想要继续训练需要 unfreeze 模型。</p>
+<pre><code class="language-python">learn.unfreeze()
+learn.fit_one_cycle(1)
+learn.load('stage-1')
+learn.lr_find()
+learn.recorder.plot()
+</code></pre>
+<p><img src="https://yinyu-newbie.github.io/post-images/1562832088303.png" alt="">
+可以根据上图 learning rate 和 loss 的关系选择合适的 learning rate 范围进行重新训练。</p>
+<pre><code class="language-python">learn.unfreeze()
+learn.fit_one_cycle(2, max_lr=slice(1e-6, 1e-4))
+</code></pre>
+<pre><code class="language-shell">epoch	train_loss	valid_loss	error_rate	time
+0	0.239481	0.194064	0.064276	00:20
+1	0.205944	0.189344	0.065629	00:20
+</code></pre>
+<p>对比前面的训练结果，可以发现错误率有所下降。</p>
+<h3 id="使用-resnet50-训练">使用 resnet50 训练</h3>
+<p>现在使用更加复杂，学习能力更强的 resnet50 模型以及尺寸更大的图像进行训练，不过更深、更复杂的神经网络、更大尺寸的图像需要更大的 GPU 显存。</p>
+<pre><code class="language-python">data = ImageDataBunch.from_name_re(path_img, fnames, pat, ds_tfms=get_transforms(),size=299, bs=bs//2).normalize(imagenet_stats)
+learn = cnn_learner(data, models.resnet50, metrics=error_rate)
+
+learn.lr_find()
+learn.recorder.plot()
+</code></pre>
+<p><img src="https://yinyu-newbie.github.io/post-images/1562832498160.png" alt="">
+接下来对比默认的 learning rate 和选择范围后的 learning rate 的训练情况。</p>
+<ul>
+<li>默认 learning rate：</li>
+</ul>
+<pre><code class="language-python">learn.fit_one_cycle(8)
+learn.save('stage-1-50')
+</code></pre>
+<pre><code class="language-shell">epoch     train_loss  valid_loss  error_rate  time    
+0         0.715670    0.296262    0.089986    00:49     
+1         0.430121    0.275823    0.090663    00:51     
+2         0.341193    0.223682    0.075101    00:51     
+3         0.265903    0.217834    0.075778    00:51     
+4         0.205271    0.195982    0.064953    00:51     
+5         0.152897    0.173261    0.054804    00:49     
+6         0.111871    0.162430    0.050068    00:52     
+7         0.091591    0.161878    0.052097    00:52
+</code></pre>
+<ul>
+<li>选择 learning_rate 的范围：</li>
+</ul>
+<pre><code class="language-python">learn.unfreeze()
+learn.fit_one_cycle(3, max_lr=slice(1e-6, 1e-4))
+</code></pre>
+<pre><code class="language-shell">epoch     train_loss  valid_loss  error_rate  time    
+0         0.114801    0.172271    0.054127    01:05     
+1         0.101861    0.159936    0.051421    01:04     
+2         0.070748    0.152122    0.044655    01:04  
+</code></pre>
+<p>可以看到，选择合适的 learning_rate，可以使训练效果更好。</p>
+<h4 id="分析训练结果-2">分析训练结果</h4>
+<pre><code class="language-python">interp = ClassificationInterpretation.from_learner(learn)
+interp.most_confused(min_val=2)
+</code></pre>
+<pre><code class="language-shell">[('Ragdoll', 'Birman', 7),
+ ('american_pit_bull_terrier', 'staffordshire_bull_terrier', 7),
+ ('Egyptian_Mau', 'Bengal', 6),
+ ('British_Shorthair', 'Russian_Blue', 4),
+ ('Bengal', 'Egyptian_Mau', 3),
+ ('Siamese', 'Birman', 3),
+ ('american_pit_bull_terrier', 'american_bulldog', 3),
+ ('english_cocker_spaniel', 'english_setter', 3),
+ ('miniature_pinscher', 'chihuahua', 3),
+ ('staffordshire_bull_terrier', 'american_pit_bull_terrier', 3),
+ ('Abyssinian', 'Bengal', 2),
+ ('Birman', 'Siamese', 2),
+ ('Maine_Coon', 'Bengal', 2),
+ ('Persian', 'Ragdoll', 2),
+ ('american_bulldog', 'american_pit_bull_terrier', 2),
+ ('boxer', 'staffordshire_bull_terrier', 2),
+ ('english_setter', 'english_cocker_spaniel', 2)]
+</code></pre>
+<h3 id="几种数据准备方式">几种数据准备方式</h3>
+<p>以 MNIST 数据为例，介绍 fastai 中提供的几种数据准备方式。</p>
+<pre><code class="language-python">path = untar_data(URLs.MNIST_SAMPLE)
+print(path)
+path.ls()
+</code></pre>
+<pre><code class="language-shell">PosixPath('/home/user/.fastai/data/mnist_sample')
+[PosixPath('/home/user/.fastai/data/mnist_sample/labels.csv'),
+ PosixPath('/home/user/.fastai/data/mnist_sample/train'),
+ PosixPath('/home/user/.fastai/data/mnist_sample/models'),
+ PosixPath('/home/user/.fastai/data/mnist_sample/valid')]
+</code></pre>
+<pre><code class="language-python">tfms = get_transforms(do_flip=False)
+
+// 文件夹形式
+data = ImageDataBunch.from_folder(path, ds_tfms=tfms, size=26)
+
+import pandas as pd
+
+df = pd.read_csv(path/'labels.csv')
+// csv 形式
+data = ImageDataBunch.from_csv(path, ds_tfms=tfms, size=28)
+
+// pandas DataFrame形式
+data = ImageDataBunch.from_df(path, df, ds_tfms=tfms, size=24)
+
+// 正则表达式形式
+fn_paths = [path/name for name in df['name']]; fn_paths[:2]
+pat = r&quot;/(\d)/\d+\.png$&quot;
+data = ImageDataBunch.from_name_re(path, fn_paths, pat=pat, ds_tfms=tfms, size=24)
+
+// 函数过滤形式
+data = ImageDataBunch.from_name_func(path, fn_paths, ds_tfms=tfms, size=24,label_func=lambda x: '3' if '/3/' in str(x) else '7')
+
+// 列表形式
+labels = [('3' if '/3/' in str(x) else '7') for x in fn_paths]
+data = ImageDataBunch.from_lists(path, fn_paths, labels=labels, ds_tfms=tfms, size=24)
+</code></pre>
+
+            </div>
+          </article>
+        </div>
+        <div class="paper" data-aos="fade-in">
+          
+            <div class="next-post">
+              <div class="next">
+                下一篇
+              </div>
+              <a href="https://yinyu-newbie.github.io/post/mit_18.06_transposes_permutation_spaces">
+                <h3 class="post-title">
+                  [MIT 18.06 线性代数 lecture5] - 矩阵转置 置换矩阵 向量空间
+                </h3>
+              </a>
+            </div>
+          
+        </div>
+        
+          
+            <div class="paper" data-aos="fade-in">
+              <div id="gitalk-container"></div>
+            </div>
+          
+
+          
+        
+      </div>
+
+      <div class="sm-12 md-4 col sidebar">
+  <div class="paper info-container">
+    <img src="https://yinyu-newbie.github.io/images/avatar.png?v=1562833774414" class="no-responsive avatar">
+    <div class="text-muted">行到水穷处，坐看云起时。</div>
+    <div class="social-container">
+      
+        
+          <a href="https://github.com/yinyu-newbie" target="_blank">
+            <i class="fab fa-github"></i>
+          </a>
+        
+      
+        
+      
+        
+      
+        
+          <a href="https://www.zhihu.com/people/yuyinsuperman/activities" target="_blank">
+            <i class="fab fa-zhihu"></i>
+          </a>
+        
+      
+        
+      
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      最新文章
+    </div>
+    <div class="row">
+      <ul>
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/fastai-lesson-1-image-classification">fastai lesson 1: Image classification</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/mit_18.06_transposes_permutation_spaces">[MIT 18.06 线性代数 lecture5] - 矩阵转置 置换矩阵 向量空间</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/mit_18.06_lecture4">[MIT 18.06 线性代数 lecture4] - A 的 LU分解</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/mit_18.06_lecture3">[MIT 18.06 线性代数 lecture3] - 矩阵乘法和逆矩阵</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/mit_18.06_lecture2">[MIT 18.06 线性代数 lecture2] - 矩阵消元法</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://yinyu-newbie.github.io/post/mit_18.06_lecture1">[MIT 18.06 线性代数 lecture1] - 方程组几何解释</a>
+            </li>
+          
+        
+      </ul>
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      标签列表
+    </div>
+    <div class="row">
+      
+        <a href="https://yinyu-newbie.github.io/tag/deep learning" class="badge secondary">
+          deep learning
+        </a>
+      
+        <a href="https://yinyu-newbie.github.io/tag/igc-5yMFR" class="badge ">
+          fastai
+        </a>
+      
+        <a href="https://yinyu-newbie.github.io/tag/ljYAVF9vj" class="badge warning">
+          linear algebra
+        </a>
+      
+        <a href="https://yinyu-newbie.github.io/tag/sS2K3ZXlg" class="badge secondary">
+          math
+        </a>
+      
+        <a href="https://yinyu-newbie.github.io/tag/WqqqVyYHS" class="badge secondary">
+          mit 18.06
+        </a>
+      
+    </div>
+  </div>
+  <div class="paper">
+    Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://yinyu-newbie.github.io/atom.xml" target="_blank">RSS</a>
+  </div>
+</div>
+
+
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+
+<script type="application/javascript">
+
+AOS.init();
+
+hljs.initHighlightingOnLoad()
+
+</script>
+
+
+
+  
+    <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+    <script>
+
+      var gitalk = new Gitalk({
+        clientID: '37a57ffc1591f58c6dd3',
+        clientSecret: 'c4961b24d1e43c76447fe607495c06e10196a712',
+        repo: 'yinyu-newbie.github.io',
+        owner: 'yinyu-newbie',
+        admin: ['yinyu-newbie'],
+        id: (location.pathname).substring(0, 49),      // Ensure uniqueness and length less than 50
+        distractionFreeMode: false  // Facebook-like distraction free mode
+      })
+
+      gitalk.render('gitalk-container')
+
+    </script>
+  
+
+  
+
+
+
+
+  </body>
+</html>
